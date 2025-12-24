@@ -5,6 +5,9 @@ interface Position {
     y: number
 }
 
+// Step 1: persistent WeakMap to store positions across multiple draggables
+const positions = new WeakMap<HTMLElement, Position>()
+
 function updatePosition(
     element: HTMLElement,
     dx: number,
@@ -13,19 +16,20 @@ function updatePosition(
 ): void {
     if (!element) return // Check if the element is valid
 
-    // If the element does not exist in the positions WeakMap, create it
-    if (!positions.has(element)) {
-        positions.set(element, { x: 0, y: 0 })
+    // Get or create position
+    const pos = positions.get(element) || { x: 0, y: 0 }
+    positions.set(element, pos)
+
+    // Compute new position
+    const newX = pos.x + dx
+    const newY = pos.y + dy
+
+    // Only update DOM if position changed
+    if (newX !== pos.x || newY !== pos.y) {
+        pos.x = newX
+        pos.y = newY
+        element.style.transform = `translate(${newX}px, ${newY}px)`
     }
-
-    // Update the element's x and y position
-    const currentPosition = positions.get(element)
-    if (!currentPosition) return // Check if the currentPosition is valid
-    currentPosition.x += dx
-    currentPosition.y += dy
-
-    // Apply the new position to the element using the CSS transform property
-    element.style.transform = `translate(${currentPosition.x}px, ${currentPosition.y}px)`
 }
 
 function disableSelection(element: HTMLElement): void {
@@ -44,16 +48,10 @@ function disableSelection(element: HTMLElement): void {
  * @param {HTMLElement} DragEl - Element to be dragged.
  */
 export function dragging(targetEl: HTMLElement, DragEl: HTMLElement): void {
-    // WeakMap to store the position of each dragged element
-    const positions = new WeakMap<HTMLElement, Position>()
-
-    // Initialize the interact.js library with the draggable element selector
+    // Initialize the interact.js library with the draggable element
     interact(DragEl).draggable({
-        // Specify the element that triggers the drag event
         allowFrom: targetEl,
-        // Set up event listeners for the draggable element
         listeners: {
-            // Update the element's position when the move event is triggered
             move(event) {
                 updatePosition(
                     event.target as HTMLElement,
@@ -63,10 +61,8 @@ export function dragging(targetEl: HTMLElement, DragEl: HTMLElement): void {
                 )
             },
         },
-        // Set up modifiers to apply constraints to the draggable element
         modifiers: [
             interact.modifiers.restrictRect({
-                // Restrict the draggable element within its parent container
                 restriction: 'body',
             }),
         ],
@@ -77,11 +73,16 @@ export function dragging(targetEl: HTMLElement, DragEl: HTMLElement): void {
         $(DragEl).css('z-index', '99')
     })
 
-    let panelElements = document.querySelectorAll(
+    const panelElements = document.querySelectorAll(
         '.elementPanel, .layoutElementPanel, #moduleProperty, #layoutDialog, #verilogEditorPanel, .timing-diagram-panel, .testbench-manual-panel, .quick-btn'
     )
 
+    // Disable selection only once per element
     panelElements.forEach((element) => {
-        disableSelection(element as HTMLElement)
+        const el = element as any
+        if (!el._selectionDisabled) {
+            disableSelection(element as HTMLElement)
+            el._selectionDisabled = true
+        }
     })
 }
