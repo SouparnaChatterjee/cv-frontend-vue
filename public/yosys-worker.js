@@ -1,5 +1,4 @@
 ﻿// yosys-worker.js
-// Place in /public/yosys-worker.js
 
 'use strict';
 
@@ -16,7 +15,7 @@ function postError(msg, requestId) {
     });
 }
 
-// ── Load WASM ─────────────────────────────────────────────────────────────────
+// Load WASM 
 Promise.resolve()
     .then(function () {
         return import('/yosys-bundle.js');
@@ -54,7 +53,7 @@ self.onmessage = function (e) {
     handleMessage(e);
 };
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+// ─ Main handler ─
 function handleMessage(e) {
     var verilog   = e.data.verilog;
     var files     = e.data.files;
@@ -66,8 +65,6 @@ function handleMessage(e) {
         return;
     }
 
-    // ── ALWAYS use verilog string as primary source of truth ─────────────
-    // Do NOT trust the files map — it may contain stale/empty content
     // from buildFileMap() being called before editor is populated.
     var primaryCode = String(verilog || '').trim();
 
@@ -75,7 +72,7 @@ function handleMessage(e) {
     console.log('[Worker] Received files:', files ? Object.keys(files) : 'none');
     console.log('[Worker] Primary code preview:', primaryCode.substring(0, 100));
 
-    // Always build from primary verilog string
+    // build from primary verilog string
     if (!primaryCode || primaryCode.length < 5) {
         postError('Empty Verilog code received by worker.', requestId);
         return;
@@ -84,8 +81,7 @@ function handleMessage(e) {
     var inputFiles = { 'input.v': primaryCode };
     var fileNames  = ['input.v'];
 
-    // ── Validate — simple check, no stripping that could break things ─────
-    // Just look for the word 'module' in the raw code
+    // Validate:simple check, no stripping that could break things
     if (primaryCode.indexOf('module') === -1) {
         postError('No module declaration found in code.', requestId);
         return;
@@ -93,7 +89,7 @@ function handleMessage(e) {
 
     console.log('[Worker] Validation passed. Has module: true');
 
-    // ── Build Yosys script ────────────────────────────────────────────────
+    // Build Yosys script
     var hierarchyCmd = topModule
         ? 'hierarchy -top ' + topModule
         : 'hierarchy -auto-top';
