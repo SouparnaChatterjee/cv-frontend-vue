@@ -475,9 +475,6 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
                 const pad = sig ? con.slice(-1)[0] : '0';
                 con.splice(con.length, 0, ...Array(sz - con.length).fill(pad));
                 if (!con.every(constbit) && get_net(con).source === undefined) {
-                    // WARNING: potentially troublesome hack for readability
-                    // handled generally in the grouping phase,
-                    // but it's hard to add sign extensions there
                     const extname = add_device({
                         type: sig ? 'SignExtend' : 'ZeroExtend',
                         extend: { input: ccon.length, output: con.length }
@@ -1006,8 +1003,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
             default:
         }
         if (dev.type == 'Dff') {
-            // find register initial value, if exists
-            // Yosys puts initial values in net attributes; there can be many for single actual net!
+            // find register initial value, if exists: Yosys puts initial values in net attributes; there can be many for single actual net!
             const nms = netnames.get(cell.connections.Q);
             if (nms !== undefined) {
                 for (const nm of nms) {
@@ -1030,7 +1026,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
         else
             throw Error('Invalid cell type: ' + cell.type);
     }
-    // Group bits into nets for complex sources
+    // Grouping bits into nets for complex sources
     for (const [nbits, net] of nets.entries()) {
         if (net.source !== undefined)
             continue;
@@ -1055,7 +1051,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
         if (groups.length == 1)
             continue;
         if (groups.slice(-1)[0].every(x => x == '0')) {
-            // infer zero-extend
+            // infering zero-extend
             const ilen = nbits.length - groups.slice(-1)[0].length;
             const dname = add_device({
                 type: 'ZeroExtend',
@@ -1083,7 +1079,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
         });
         add_net_source(nbits, dname, 'out');
     }
-    // Select bits from complex targets
+    // Selecting bits from complex targets
     for (const [nbits, net] of nets.entries()) {
         if (net.source !== undefined)
             continue;
@@ -1092,7 +1088,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
         const bitinfos = nbits.map(x => bits.get(x));
         if (!bitinfos.every(x => typeof x == 'object'))
             continue; // ignore not fully driven ports
-        // complex sources should be already handled!
+        // complex sources should be already handled
         assert(bitinfos.every(info => info.id == bitinfos[0].id &&
             info.port == bitinfos[0].port));
         const cconn = devnets.get(bitinfos[0].id).get(bitinfos[0].port);
@@ -1107,7 +1103,7 @@ function yosys_to_digitaljs_mod(name, mod, portmaps, options = {}) {
         add_net_source(nbits, dname, 'out');
         add_net_target(cconn, dname, 'in');
     }
-    // Generate connections between devices
+    // Generating connections between devices
     for (const [nbits, net] of nets.entries()) {
         if (net.source === undefined) {
             console.warn('Undriven net in ' + name + ': ' + nbits);
@@ -1153,7 +1149,7 @@ function io_ui(output) {
         if (dev.type == 'Input' || dev.type == 'Output') {
             dev.label = dev.net;
         }
-        // use clock for clocky named inputs
+        // using clock for clocky named inputs
         if (dev.type == 'Input' && dev.bits == 1 && (dev.label == 'clk' || dev.label == 'clock')) {
             dev.type = 'Clock';
             dev.propagation = 100;
