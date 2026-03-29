@@ -1,6 +1,4 @@
 ﻿// yosys-worker.js
-// Place in /public/yosys-worker.js
-
 'use strict';
 
 var runYosys    = null;
@@ -16,10 +14,10 @@ function postError(msg, requestId) {
     });
 }
 
-// ── Load converter + WASM ─────────────────────────────────────────────────────
+// Load converter + WASM 
 Promise.resolve()
     .then(function () {
-        // importScripts is synchronous — sets self.yosys2digitaljs as global
+        // importScripts is synchronous ie.sets self.yosys2digitaljs as global
         try {
             importScripts('/yosys2digitaljs-browser.js');
             if (typeof self.yosys2digitaljs === 'function') {
@@ -29,7 +27,7 @@ Promise.resolve()
             }
         } catch (e) {
             console.warn('[Worker] Could not load yosys2digitaljs core:', e.message);
-            // non-fatal — main thread will use manual fallback converter
+            // non-fatal:- main thread will use manual fallback converter
         }
 
         return import('/yosys-bundle.js');
@@ -45,7 +43,7 @@ Promise.resolve()
             );
         }
 
-        // warm-up run — swallow error intentionally
+        // warm-up run:- swallow error intentionally
         return runYosys([], {}, { synchronously: false }).catch(function () {});
     })
     .then(function () {
@@ -61,7 +59,7 @@ Promise.resolve()
         postError('Failed to load Yosys WASM: ' + msg);
     });
 
-// ── Message queue ─────────────────────────────────────────────────────────────
+//  Message queue 
 self.onmessage = function (e) {
     if (!wasmLoaded) {
         pendingMessages.push(e);
@@ -70,7 +68,7 @@ self.onmessage = function (e) {
     handleMessage(e);
 };
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+//Main handler
 function handleMessage(e) {
     var verilog   = e.data.verilog;
     var files     = e.data.files;
@@ -82,12 +80,12 @@ function handleMessage(e) {
         return;
     }
 
-    // ── Build VFS input map ───────────────────────────────────────────────
+    //  Building VFS input map 
     var inputFiles;
     var fileNames;
 
     if (files && typeof files === 'object' && Object.keys(files).length > 0) {
-        // multi-file path — filter out empty files
+        // multi-file path to ffilter out empty files
         var filtered = {};
         Object.keys(files).forEach(function (name) {
             var content = String(files[name] || '').trim();
@@ -126,7 +124,7 @@ function handleMessage(e) {
     console.log('[Worker] Total code length:', allCode.length);
     console.log('[Worker] Top module:', topModule || '(auto-top)');
 
-    // ── Build Yosys script ────────────────────────────────────────────────
+    // Build Yosys script 
     var hierarchyCmd = topModule
         ? 'hierarchy -top ' + topModule
         : 'hierarchy -auto-top';
@@ -169,7 +167,7 @@ function handleMessage(e) {
                 : Object.keys(result || {})
         );
 
-        // ── Extract output.json ───────────────────────────────────────────
+        // Extract output.json 
         var jsonRaw = (result instanceof Map)
             ? result.get('output.json')
             : (result && result['output.json']);
@@ -183,7 +181,7 @@ function handleMessage(e) {
             return;
         }
 
-        // ── Parse Yosys JSON ──────────────────────────────────────────────
+        // Parsing Yosys JSON 
         var jsonText = (typeof jsonRaw === 'string')
             ? jsonRaw
             : new TextDecoder().decode(jsonRaw);
@@ -207,9 +205,9 @@ function handleMessage(e) {
 
         console.log('[Worker] Modules found:', Object.keys(parsed.modules));
 
-        // ── Convert using yosys2digitaljs core ────────────────────────────
-        // If core loaded successfully via importScripts, use it
-        // Otherwise send raw JSON and let main thread use manual fallback
+        //  Convert using yosys2digitaljs core:-
+        // If core is loaded successfully via importScripts, we use it
+        // If not, send raw JSON and let main thread use manual fallback..
         var converted;
         var usedCore = false;
 
@@ -227,7 +225,7 @@ function handleMessage(e) {
         }
 
         if (!usedCore) {
-            // raw JSON — main thread convertYosysToDigitalJs() handles it
+            // raw JSON (main thread convertYosysToDigitalJs() handles it)
             self.postMessage({
                 type:      'success',
                 json:      parsed,
